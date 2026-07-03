@@ -90,7 +90,7 @@ function AnimatedContentCard({ stage }) {
       <motion.div
         whileHover={{ y: -5 }}
         transition={{ type: "spring", stiffness: 300, damping: 25 }}
-        className="group relative h-[230px] w-full overflow-hidden rounded-2xl border border-slate-900 bg-[#0a0f1c]/50 p-6 shadow-xl backdrop-blur-xl transition-all duration-500 hover:border-slate-700/80"
+        className="group relative h-auto min-h-[230px] w-full overflow-hidden rounded-2xl border border-slate-900 bg-[#0a0f1c]/50 p-6 shadow-xl backdrop-blur-xl transition-all duration-500 hover:border-slate-700/80"
         style={{
           boxShadow: isHovered
             ? `inset 0 0 20px ${stage.accent}08, 0 15px 30px rgba(0,0,0,0.5)`
@@ -112,7 +112,7 @@ function AnimatedContentCard({ stage }) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.35, ease: "easeInOut" }}
-              className="flex h-full flex-col justify-between"
+              className="flex h-full flex-col justify-between gap-4"
             >
               <div>
                 <div className="mb-4 flex items-center justify-between">
@@ -143,7 +143,7 @@ function AnimatedContentCard({ stage }) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
               transition={{ duration: 0.4, ease: "easeOut" }}
-              className="flex h-full flex-col justify-between"
+              className="flex h-full flex-col justify-between gap-4"
             >
               <div>
                 <div className="mb-2 flex items-center gap-2">
@@ -519,17 +519,17 @@ export default function InsightFlow() {
       </div>
 
       {/* Timeline Wrapper */}
-      <div className="relative mx-auto max-w-5xl px-4 sm:px-8 md:px-0">
-        {/* Main Vertical Line */}
-        <div className="absolute bottom-0 left-4 top-0 z-0 w-[2px] -translate-x-1/2 bg-slate-900 md:left-1/2">
+      <div className="relative mx-auto max-w-5xl">
+        {/* Main Vertical Line (Rock Solid Alignment Fixed) */}
+        <div className="absolute bottom-0 left-6 top-0 z-0 w-[2px] -translate-x-1/2 bg-slate-900 md:left-1/2">
           <motion.div
             style={{ scaleY, transformOrigin: "top" }}
             className="h-full w-full bg-gradient-to-b from-cyan-500 via-violet-500 to-amber-500"
           />
         </div>
 
-        {/* Rows */}
-        <div className="relative z-10 space-y-16 md:space-y-24">
+        {/* Rows (Using 2-column grid on mobile to ensure absolute lock alignment) */}
+        <div className="relative z-10 space-y-12 md:space-y-24">
           {stages.map((stage, index) => {
             const isEven = index % 2 === 0;
 
@@ -540,34 +540,38 @@ export default function InsightFlow() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-100px" }}
                 transition={{ type: "spring", stiffness: 60, damping: 18 }}
-                className="group/row flex flex-col md:grid md:grid-cols-[1fr_auto_1fr] items-center gap-6 md:gap-8 lg:gap-12"
+                className="group/row grid grid-cols-[48px_1fr] md:grid-cols-[1fr_auto_1fr] items-center gap-4 md:gap-8 lg:gap-12 w-full"
               >
-                {/* Left Block: order is ALWAYS fixed (order-1 on desktop). Only the
-                    content inside (card vs motif) alternates via isEven, which is
-                    what actually produces the zigzag layout. */}
-                <div className="w-full pl-8 md:pl-0 order-2 md:order-1">
-                  {isEven ? (
-                    <AnimatedContentCard stage={stage} />
-                  ) : (
-                    <div className="flex justify-center opacity-75 group-hover/row:opacity-100 transition-opacity duration-300">
-                      <StageMotif stage={stage} />
-                    </div>
-                  )}
-                </div>
-
-                {/* Middle Center Node */}
-                <div className="absolute left-4 md:relative md:left-0 md:order-2 -translate-x-1/2 md:translate-x-0">
+                {/* 1. Center Node Area for Mobile (Acts as column 1 on mobile, Middle Node on Desktop) */}
+                <div className="flex justify-center items-center h-full w-full md:order-2 md:col-auto">
                   <CenterNode accent={stage.accent} gradient={stage.gradient} />
                 </div>
 
-                {/* Right Block: order is ALWAYS fixed (order-3 on desktop). */}
-                <div className="w-full pl-8 md:pl-0 order-3 md:order-3">
+                {/* 2. Left / Main Content Block (Acts as column 2 on mobile, Left Block on Desktop) */}
+                <div className="w-full md:order-1">
                   {isEven ? (
+                    <AnimatedContentCard stage={stage} />
+                  ) : (
+                    <>
+                      {/* Mobile will render card here, Desktop will hide it and show SVG instead */}
+                      <div className="block md:hidden">
+                        <AnimatedContentCard stage={stage} />
+                      </div>
+                      <div className="hidden md:flex justify-center opacity-75 group-hover/row:opacity-100 transition-opacity duration-300">
+                        <StageMotif stage={stage} />
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* 3. Right Block (Only active on Desktop) */}
+                <div className="hidden md:block w-full md:order-3">
+                  {!isEven ? (
+                    <AnimatedContentCard stage={stage} />
+                  ) : (
                     <div className="flex justify-center opacity-75 group-hover/row:opacity-100 transition-opacity duration-300">
                       <StageMotif stage={stage} />
                     </div>
-                  ) : (
-                    <AnimatedContentCard stage={stage} />
                   )}
                 </div>
               </motion.div>
