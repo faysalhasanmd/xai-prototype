@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import AOS from "aos";
+import "aos/dist/aos.css";
 import {
   LayoutDashboard,
   Brain,
@@ -16,6 +18,8 @@ import {
   RefreshCw,
   BarChart3,
   Filter,
+  Menu, // Added for mobile trigger
+  X, // Added for drawer close
 } from "lucide-react";
 
 // --- Static Mock Data ---
@@ -95,8 +99,20 @@ const recentInferences = [
 export default function IntelligenceDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [searchFocused, setSearchFocused] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile drawer state
 
-  // Animation variants for standard entry
+  useEffect(() => {
+    AOS.init({
+      duration: 800,
+      easing: "ease-out-cubic",
+      once: true,
+      offset: 80,
+      mirror: false,
+    });
+    AOS.refresh();
+  }, []);
+
+  // Animation variants for standard entry (tab switch e use hoy)
   const containerVariants = {
     hidden: { opacity: 0 },
     show: {
@@ -114,13 +130,13 @@ export default function IntelligenceDashboard() {
     },
   };
 
-  return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-100 font-sans antialiased overflow-hidden selection:bg-cyan-500/30">
-      {/* 1. SIDEBAR NAVIGATION */}
-      <aside className="w-64 border-r border-slate-900 bg-slate-950 p-6 flex flex-col justify-between hidden md:flex shrink-0">
-        <div>
-          {/* Logo Zone */}
-          <div className="flex items-center gap-3 px-2 mb-8">
+  // Reusable Navigation Links Component
+  const SidebarContent = () => (
+    <div className="flex flex-col justify-between h-full">
+      <div>
+        {/* Logo Zone */}
+        <div className="flex items-center justify-between px-2 mb-8">
+          <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-indigo-500 flex items-center justify-center shadow-lg shadow-cyan-500/10">
               <Brain className="w-4 h-4 text-white" />
             </div>
@@ -128,105 +144,172 @@ export default function IntelligenceDashboard() {
               Aether.AI
             </span>
           </div>
-
-          {/* Navigation Items */}
-          <nav className="space-y-1">
-            {sidebarItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.id;
-
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 relative group`}
-                >
-                  {/* Active Background Pill */}
-                  {isActive && (
-                    <motion.div
-                      layoutId="activeSidebar"
-                      className="absolute inset-0 bg-slate-900 rounded-lg border border-slate-800/60"
-                      transition={{
-                        type: "spring",
-                        stiffness: 380,
-                        damping: 30,
-                      }}
-                    />
-                  )}
-
-                  <div className="flex items-center gap-3 relative z-10 text-slate-400 group-hover:text-slate-200 transition-colors">
-                    <Icon
-                      className={`w-4 h-4 ${isActive ? "text-cyan-400" : ""}`}
-                    />
-                    <span className={isActive ? "text-slate-100" : ""}>
-                      {item.label}
-                    </span>
-                  </div>
-
-                  {item.badge && (
-                    <span className="relative z-10 text-xxs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded">
-                      {item.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </nav>
+          {/* Close button inside mobile drawer */}
+          <button
+            onClick={() => setIsSidebarOpen(false)}
+            className="p-1 text-slate-400 hover:text-slate-100 md:hidden"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        {/* User Workspace Status */}
-        <div className="p-3 bg-slate-900/40 border border-slate-900 rounded-xl flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700">
-            <span className="text-xs font-mono font-bold text-cyan-400">
-              BD
-            </span>
-          </div>
-          <div className="overflow-hidden">
-            <p className="text-xs font-medium text-slate-200 truncate">
-              Production-Node-01
-            </p>
-            <p className="text-xxs text-emerald-400 flex items-center gap-1 mt-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Operational
-            </p>
-          </div>
+        {/* Navigation Items */}
+        <nav className="space-y-1">
+          {sidebarItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  setIsSidebarOpen(false); // Close drawer on mobile click
+                }}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 relative group"
+              >
+                {/* Active Background Pill */}
+                {isActive && (
+                  <motion.div
+                    layoutId="activeSidebar"
+                    className="absolute inset-0 bg-slate-900 rounded-lg border border-slate-800/60"
+                    transition={{
+                      type: "spring",
+                      stiffness: 380,
+                      damping: 30,
+                    }}
+                  />
+                )}
+
+                <div className="flex items-center gap-3 relative z-10 text-slate-400 group-hover:text-slate-200 transition-colors">
+                  <Icon
+                    className={`w-4 h-4 ${isActive ? "text-cyan-400" : ""}`}
+                  />
+                  <span className={isActive ? "text-slate-100" : ""}>
+                    {item.label}
+                  </span>
+                </div>
+
+                {item.badge && (
+                  <span className="relative z-10 text-xxs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded">
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* User Workspace Status */}
+      <div className="p-3 bg-slate-900/40 border border-slate-900 rounded-xl flex items-center gap-3 mt-auto">
+        <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700">
+          <span className="text-xs font-mono font-bold text-cyan-400">BD</span>
         </div>
+        <div className="overflow-hidden">
+          <p className="text-xs font-medium text-slate-200 truncate">
+            Production-Node-01
+          </p>
+          <p className="text-xxs text-emerald-400 flex items-center gap-1 mt-0.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Operational
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div
+      className="flex min-h-screen bg-slate-950 text-slate-100 font-sans antialiased overflow-hidden selection:bg-cyan-500/30"
+      data-aos="fade-up"
+      data-aos-duration="900"
+    >
+      {/* 1. DESKTOP SIDEBAR (Visible on md and up) */}
+      <aside
+        className="w-64 border-r border-slate-900 bg-slate-950 p-6 hidden md:flex flex-col shrink-0 z-30"
+        data-aos="fade-right"
+        data-aos-delay="150"
+      >
+        <SidebarContent />
       </aside>
 
-      {/* 2. MAIN CONTENT PANEL */}
+      {/* 2. MOBILE & TABLET DRAWER (AnimatePresence used for smooth open/close) */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <>
+            {/* Backdrop Overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSidebarOpen(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
+            />
+
+            {/* Sliding Drawer Sheet */}
+            <motion.aside
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed inset-y-0 left-0 w-72 bg-slate-950 border-r border-slate-900 p-6 z-50 md:hidden shadow-2xl"
+            >
+              <SidebarContent />
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* 3. MAIN CONTENT PANEL */}
       <div className="flex-1 flex flex-col min-w-0 bg-slate-950">
         {/* Top Operational Navbar */}
-        <header className="h-16 border-b border-slate-900 px-6 lg:px-8 flex items-center justify-between bg-slate-950/80 backdrop-blur z-20">
-          {/* Search bar with State Transition */}
-          <div className="relative w-64 lg:w-80">
-            <Search
-              className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${searchFocused ? "text-cyan-400" : "text-slate-500"}`}
-            />
-            <input
-              type="text"
-              placeholder="Search pipelines, logs, hash..."
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setSearchFocused(false)}
-              className="w-full bg-slate-900/60 border border-slate-800/80 rounded-lg pl-9 pr-4 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-slate-700 focus:bg-slate-900 transition-all"
-            />
+        <header
+          className="h-16 border-b border-slate-900 px-4 sm:px-6 lg:px-8 flex items-center justify-between bg-slate-950/80 backdrop-blur z-20"
+          data-aos="fade-down"
+          data-aos-delay="200"
+        >
+          {/* Hamburger Menu Trigger & Search bar Container */}
+          <div className="flex items-center gap-3 flex-1 max-w-xs lg:max-w-md">
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 -ml-2 text-slate-400 hover:text-slate-200 bg-slate-900/40 border border-slate-800 rounded-lg md:hidden transition-colors"
+            >
+              <Menu className="w-4 h-4" />
+            </button>
+
+            {/* Search Input */}
+            <div className="relative w-full">
+              <Search
+                className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${searchFocused ? "text-cyan-400" : "text-slate-500"}`}
+              />
+              <input
+                type="text"
+                placeholder="Search pipelines..."
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
+                className="w-full bg-slate-900/60 border border-slate-800/80 rounded-lg pl-9 pr-4 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-slate-700 focus:bg-slate-900 transition-all"
+              />
+            </div>
           </div>
 
           {/* Action Hub */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 sm:gap-4 ml-4">
             <button className="relative p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 border border-transparent hover:border-slate-800/50 transition-all">
               <Bell className="w-4 h-4" />
               <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-cyan-400" />
             </button>
-            <div className="h-4 w-[1px] bg-slate-800" />
-            <button className="flex items-center gap-2 text-xs bg-slate-900 border border-slate-800 hover:border-slate-700 px-3 py-1.5 rounded-lg font-medium transition-colors">
+            <div className="h-4 w-[1px] bg-slate-800 hidden sm:block" />
+            <button className="flex items-center gap-2 text-xs bg-slate-900 border border-slate-800 hover:border-slate-700 px-3 py-1.5 rounded-lg font-medium transition-colors whitespace-nowrap">
               <RefreshCw className="w-3.5 h-3.5 text-slate-400" />
-              Sync Data
+              <span className="hidden sm:inline">Sync Data</span>
             </button>
           </div>
         </header>
 
         {/* Dynamic Content View Area */}
-        <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
@@ -236,7 +319,7 @@ export default function IntelligenceDashboard() {
               className="space-y-8"
             >
               {/* Tab Title Block */}
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h1 className="text-xl font-semibold tracking-tight text-slate-100 capitalize">
                     {activeTab === "overview"
@@ -248,7 +331,7 @@ export default function IntelligenceDashboard() {
                     interfaces.
                   </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 self-start sm:self-auto">
                   <button className="flex items-center gap-1.5 bg-slate-900 text-slate-300 border border-slate-800 text-xs px-2.5 py-1.5 rounded hover:border-slate-700 transition-colors">
                     <Filter className="w-3.5 h-3.5 text-slate-500" /> Filter
                   </button>
@@ -258,7 +341,11 @@ export default function IntelligenceDashboard() {
               {activeTab === "overview" ? (
                 <>
                   {/* 3. METRIC CARDS GRID */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div
+                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+                    data-aos="fade-up"
+                    data-aos-delay="250"
+                  >
                     {metrics.map((metric, i) => (
                       <motion.div
                         key={i}
@@ -299,6 +386,8 @@ export default function IntelligenceDashboard() {
                     {/* Mock Analytics Chart Panel */}
                     <motion.div
                       variants={itemVariants}
+                      data-aos="fade-right"
+                      data-aos-delay="300"
                       className="lg:col-span-2 bg-slate-900/20 border border-slate-900 rounded-xl p-5 flex flex-col justify-between h-80"
                     >
                       <div className="flex items-center justify-between">
@@ -314,7 +403,7 @@ export default function IntelligenceDashboard() {
                       </div>
 
                       {/* Geometry-based Geometric Bars Mock Chart */}
-                      <div className="h-48 flex items-end gap-1.5 pt-4 px-2 border-b border-l border-slate-900/60">
+                      <div className="h-48 flex items-end gap-1 sm:gap-1.5 pt-4 px-2 border-b border-l border-slate-900/60 overflow-hidden">
                         {[
                           40, 55, 45, 60, 75, 50, 65, 80, 95, 70, 85, 60, 50,
                           65, 85, 100, 75, 90, 110, 95,
@@ -339,8 +428,8 @@ export default function IntelligenceDashboard() {
 
                       <div className="flex justify-between text-xxs text-slate-600 font-mono mt-2">
                         <span>20:45</span>
-                        <span>20:50</span>
-                        <span>20:55</span>
+                        <span className="hidden sm:inline">20:50</span>
+                        <span className="hidden sm:inline">20:55</span>
                         <span>21:00 (Current)</span>
                       </div>
                     </motion.div>
@@ -348,9 +437,11 @@ export default function IntelligenceDashboard() {
                     {/* Operational Guardrails Box */}
                     <motion.div
                       variants={itemVariants}
+                      data-aos="fade-left"
+                      data-aos-delay="350"
                       className="bg-slate-900/20 border border-slate-900 rounded-xl p-5 flex flex-col justify-between"
                     >
-                      <div>
+                      <div className="space-y-2">
                         <div className="flex items-center gap-2 mb-4">
                           <BarChart3 className="w-4 h-4 text-indigo-400" />
                           <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
@@ -409,6 +500,8 @@ export default function IntelligenceDashboard() {
                   {/* 5. DATA TABLE PREVIEW */}
                   <motion.div
                     variants={itemVariants}
+                    data-aos="fade-up"
+                    data-aos-delay="400"
                     className="bg-slate-900/20 border border-slate-900 rounded-xl overflow-hidden"
                   >
                     <div className="p-5 border-b border-slate-900 flex items-center justify-between">
@@ -421,7 +514,7 @@ export default function IntelligenceDashboard() {
                       </span>
                     </div>
                     <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs border-collapse">
+                      <table className="w-full text-left text-xs border-collapse min-w-[600px]">
                         <thead>
                           <tr className="border-b border-slate-900 text-slate-500 font-medium bg-slate-950/40">
                             <th className="p-4 font-mono">Inference ID</th>
