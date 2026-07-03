@@ -2,74 +2,119 @@
 
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useRef, useMemo, useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import AOS from "aos";
-import "aos/dist/aos.css";
+import { motion, AnimatePresence } from "framer-motion";
+import * as THREE from "three";
 
-const COUNT = 600;
+// Responsive particle allocation based on screen sizing
+function useParticleCount() {
+  const [count, setCount] = useState(600);
 
-function ParticleField({ scrollProgress, mouse }) {
+  useEffect(() => {
+    const compute = () => {
+      const w = window.innerWidth;
+      if (w < 640) return 180; // Mobile
+      if (w < 1024) return 340; // Tablet
+      return 600; // Desktop
+    };
+
+    setCount(compute());
+    const handleResize = () => setCount(compute());
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return count;
+}
+
+function ParticleField({ scrollProgress, mouse, count }) {
   const pointsRef = useRef();
 
-  const { rawPositions, gridPositions } = useMemo(() => {
-    const raw = new Float32Array(COUNT * 3);
-    const grid = new Float32Array(COUNT * 3);
+  const { rawPositions, gridPositions, colors } = useMemo(() => {
+    const raw = new Float32Array(count * 3);
+    const grid = new Float32Array(count * 3);
+    const colsArray = new Float32Array(count * 3);
 
-    const cols = 30;
-    const rows = Math.ceil(COUNT / cols);
-    const spacing = 0.25;
+    const cols = window.innerWidth < 640 ? 15 : 30;
+    const spacing = window.innerWidth < 640 ? 0.22 : 0.26;
 
-    for (let i = 0; i < COUNT; i++) {
-      raw[i * 3] = (Math.random() - 0.5) * 10;
-      raw[i * 3 + 1] = (Math.random() - 0.5) * 10;
-      raw[i * 3 + 2] = (Math.random() - 0.5) * 10;
+    const colorCyan = new THREE.Color("#00f2ff");
+    const colorPurple = new THREE.Color("#a855f7");
+    const colorAmber = new THREE.Color("#e8a33d");
+    const tempColor = new THREE.Color();
 
+    for (let i = 0; i < count; i++) {
+      // Raw state: distributed system cloud
+      raw[i * 3] = (Math.random() - 0.5) * 8;
+      raw[i * 3 + 1] = (Math.random() - 0.5) * 8;
+      raw[i * 3 + 2] = (Math.random() - 0.5) * 8;
+
+      // Structured grid layout coordinates
       const col = i % cols;
       const row = Math.floor(i / cols);
       grid[i * 3] = (col - cols / 2) * spacing;
-      grid[i * 3 + 1] = (row - rows / 2) * spacing;
-      grid[i * 3 + 2] = Math.sin(col * 0.5) * 0.2;
-    }
-    return { rawPositions: raw, gridPositions: grid };
-  }, []);
+      grid[i * 3 + 1] = (row - Math.ceil(count / cols) / 2) * spacing;
+      grid[i * 3 + 2] = Math.sin(col * 0.4) * 0.15;
 
-  const current = useMemo(() => new Float32Array(COUNT * 3), []);
+      // Color mapping interpolation matching image
+      const factor = row / Math.ceil(count / cols);
+      if (factor < 0.4) {
+        tempColor.copy(colorCyan).lerp(colorPurple, factor * 2.5);
+      } else {
+        tempColor.copy(colorPurple).lerp(colorAmber, (factor - 0.4) * 1.66);
+      }
+
+      colsArray[i * 3] = tempColor.r;
+      colsArray[i * 3 + 1] = tempColor.g;
+      colsArray[i * 3 + 2] = tempColor.b;
+    }
+    return { rawPositions: raw, gridPositions: grid, colors: colsArray };
+  }, [count]);
+
+  const current = useMemo(() => new Float32Array(count * 3), [count]);
 
   useFrame(() => {
     if (!pointsRef.current) return;
     const positions = pointsRef.current.geometry.attributes.position.array;
 
-    for (let i = 0; i < COUNT * 3; i++) {
+    for (let i = 0; i < count * 3; i++) {
       const target =
         rawPositions[i] +
         (gridPositions[i] - rawPositions[i]) * scrollProgress.current;
-      positions[i] += (target - positions[i]) * 0.05;
+      positions[i] += (target - positions[i]) * 0.06;
     }
     pointsRef.current.geometry.attributes.position.needsUpdate = true;
 
+    // Fluid responsive tracking speed adjustments
     pointsRef.current.rotation.y +=
-      (mouse.current.x * 0.3 - pointsRef.current.rotation.y) * 0.02 + 0.001;
+      (mouse.current.x * 0.15 - pointsRef.current.rotation.y) * 0.03 + 0.0005;
     pointsRef.current.rotation.x +=
-      (mouse.current.y * 0.15 - pointsRef.current.rotation.x) * 0.02;
+      (mouse.current.y * 0.08 - pointsRef.current.rotation.x) * 0.03;
   });
 
   return (
-    <points ref={pointsRef}>
+    <points key={count} ref={pointsRef}>
       <bufferGeometry>
         <bufferAttribute
           attach="attributes-position"
-          count={COUNT}
+          count={count}
           array={current}
+          itemSize={3}
+        />
+        <bufferAttribute
+          attach="attributes-color"
+          count={count}
+          array={colors}
           itemSize={3}
         />
       </bufferGeometry>
       <pointsMaterial
-        size={0.05}
-        color="#a855f7"
+        size={window.innerWidth < 640 ? 0.065 : 0.052}
+        vertexColors
         sizeAttenuation
         transparent
-        opacity={0.8}
-        blending={2}
+        opacity={0.85}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
       />
     </points>
   );
@@ -79,22 +124,15 @@ export default function Hero() {
   const scrollProgress = useRef(0);
   const mouse = useRef({ x: 0, y: 0 });
   const [ready, setReady] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const particleCount = useParticleCount();
 
   useEffect(() => {
     setReady(true);
 
-    // AOS init — ekbar mount hole global config set hoye jabe
-    AOS.init({
-      duration: 800,
-      easing: "ease-out-cubic",
-      once: true, // animation ekbar e trigger hobe, abar scroll up-down korle repeat korbe na
-      offset: 60, // viewport e koto age theke trigger hobe (px)
-      mirror: false,
-    });
-
     const handleScroll = () => {
       const vh = window.innerHeight;
-      const p = Math.min(Math.max(window.scrollY / vh, 0), 1);
+      const p = Math.min(Math.max(window.scrollY / (vh * 0.75), 0), 1);
       scrollProgress.current = p;
     };
 
@@ -105,115 +143,240 @@ export default function Hero() {
       };
     };
 
-    window.addEventListener("scroll", handleScroll);
+    // Touch device support mapping
+    const handleTouchMove = (e) => {
+      if (e.touches.length > 0) {
+        mouse.current = {
+          x: (e.touches[0].clientX / window.innerWidth) * 2 - 1,
+          y: (e.touches[0].clientY / window.innerHeight) * 2 - 1,
+        };
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
     window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+
     return () => {
       window.removeEventListener("scroll", handleScroll);
       window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("touchmove", handleTouchMove);
     };
   }, []);
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.08, delayChildren: 0.1 },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 12 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] },
+    },
+  };
+
   return (
-    <section className="w-full min-h-screen bg-[#030303] relative flex items-center overflow-hidden font-sans select-none border-b border-neutral-900">
-      <div className="absolute inset-0 z-0 opacity-80 pointer-events-none">
+    <section
+      className="w-full min-h-[100svh] relative flex items-center overflow-hidden select-none border-b"
+      style={{ background: "#050608", borderColor: "#12141a" }}
+    >
+      {/* Three.js Layer Integration with Responsive Adjustments */}
+      <div className="absolute inset-0 z-0 opacity-70 pointer-events-none md:translate-x-[15%] lg:translate-x-0">
         {ready && (
-          <Canvas camera={{ position: [0, 0, 5], fov: 60 }}>
-            <ambientLight intensity={1.5} />
-            <ParticleField scrollProgress={scrollProgress} mouse={mouse} />
+          <Canvas
+            camera={{
+              position: [0, 0, 4.6],
+              fov: window.innerWidth < 640 ? 60 : 52,
+            }}
+          >
+            <ambientLight intensity={1.2} />
+            <ParticleField
+              scrollProgress={scrollProgress}
+              mouse={mouse}
+              count={particleCount}
+            />
           </Canvas>
         )}
       </div>
 
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f1f1f12_1px,transparent_1px),linear-gradient(to_bottom,#1f1f1f12_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] pointer-events-none z-10" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_40%,rgba(168,85,247,0.08),transparent_50%)] pointer-events-none z-10" />
+      {/* Grid Overlay Texture */}
+      <div
+        className="absolute inset-0 pointer-events-none z-10 opacity-25"
+        style={{
+          backgroundImage:
+            "linear-gradient(to right, #22252B 1px, transparent 1px), linear-gradient(to bottom, #22252B 1px, transparent 1px)",
+          backgroundSize: "48px 48px",
+          maskImage:
+            "radial-gradient(circle 75% at 50% 50%, #000 40%, transparent 100%)",
+          WebkitMaskImage:
+            "radial-gradient(circle 75% at 50% 50%, #000 40%, transparent 100%)",
+        }}
+      />
 
-      <header
-        className="absolute top-0 inset-x-0 h-20 px-8 md:px-16 flex items-center justify-between z-30"
-        data-aos="fade-down"
-        data-aos-duration="600"
-      >
-        <div className="text-white font-semibold text-xl tracking-tight flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-sm bg-purple-500" />
+      {/* Glow Rings Mapping */}
+      <div className="absolute top-1/4 right-[5%] sm:right-[10%] w-64 sm:w-96 h-64 sm:h-96 bg-cyan-500/5 blur-[90px] sm:blur-[120px] rounded-full pointer-events-none z-10" />
+      <div className="absolute bottom-1/4 left-[2%] sm:left-[5%] w-64 sm:w-96 h-64 sm:h-96 bg-amber-500/5 blur-[100px] sm:blur-[140px] rounded-full pointer-events-none z-10" />
+
+      {/* Header Viewport Safe Navigation */}
+      <header className="absolute top-0 inset-x-0 h-16 sm:h-20 px-4 sm:px-8 md:px-12 lg:px-16 flex items-center justify-between z-30 border-b border-[#22252B]/20 backdrop-blur-md">
+        <div className="text-[#ECEAE4] font-medium text-sm sm:text-base tracking-wider flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_10px_#00f2ff]" />
           Xai
         </div>
-        <div className="hidden md:flex items-center gap-8 text-sm text-neutral-400">
-          <a href="#features" className="hover:text-white transition-colors">
+
+        <nav className="hidden md:flex items-center gap-8 lg:gap-12 text-[11px] lg:text-xs tracking-widest uppercase font-mono text-[#8B8E96]">
+          <a
+            href="#features"
+            className="hover:text-cyan-400 transition-colors duration-300"
+          >
             Core Engine
           </a>
-          <a href="#dashboard" className="hover:text-white transition-colors">
+          <a
+            href="#workspace"
+            className="hover:text-purple-400 transition-colors duration-300"
+          >
             Workspace
           </a>
+          <a
+            href="#docs"
+            className="hover:text-amber-400 transition-colors duration-300"
+          >
+            Documentation
+          </a>
+        </nav>
+
+        <div className="flex items-center gap-3">
+          <button className="hidden sm:inline-flex px-4 sm:px-5 py-2 text-[10px] lg:text-xs font-mono tracking-wider uppercase text-[#ECEAE4] bg-[#131519] border border-[#22252B] rounded-full hover:border-cyan-500/40 transition-all duration-300">
+            Launch Console
+          </button>
+
+          {/* Fully Responsive Mobile Burger Trigger */}
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label="Toggle structural menu"
+            className="md:hidden flex items-center justify-center w-9 h-9 rounded-full border border-[#22252B] bg-[#131519] text-[#8B8E96] active:scale-95 transition-transform"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              {menuOpen ? (
+                <path d="M18 6 6 18M6 6l12 12" />
+              ) : (
+                <path d="M4 6h16M4 12h16M4 18h16" />
+              )}
+            </svg>
+          </button>
         </div>
-        <button className="px-4 py-1.5 text-xs font-medium text-white bg-neutral-900 border border-neutral-800 rounded-full hover:bg-neutral-800 transition-all">
-          Launch App
-        </button>
       </header>
 
-      <div className="w-full max-w-7xl mx-auto px-8 md:px-16 grid grid-cols-1 lg:grid-cols-12 relative z-20 pt-12">
-        <div className="lg:col-span-7 flex flex-col justify-center space-y-8">
+      {/* Mobile Dynamic Slide Panel */}
+      <AnimatePresence>
+        {menuOpen && (
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6 }}
-            className="inline-flex items-center gap-2 w-fit px-3 py-1 text-xs font-mono bg-purple-950/30 border border-purple-900/50 rounded-full text-purple-300 backdrop-blur-sm"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            className="absolute top-16 inset-x-0 z-40 md:hidden mx-4 p-5 rounded-xl border border-[#22252B] bg-[#050608]/95 backdrop-blur-xl flex flex-col gap-4 text-xs font-mono text-[#8B8E96]"
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
-            V2.0 Intelligence Loop Active
+            <a
+              href="#features"
+              onClick={() => setMenuOpen(false)}
+              className="hover:text-cyan-400 p-1"
+            >
+              Core Engine
+            </a>
+            <a
+              href="#workspace"
+              onClick={() => setMenuOpen(false)}
+              className="hover:text-purple-400 p-1"
+            >
+              Workspace
+            </a>
+            <a
+              href="#docs"
+              onClick={() => setMenuOpen(false)}
+              className="hover:text-amber-400 p-1"
+            >
+              Documentation
+            </a>
+            <button className="w-full mt-2 py-2.5 text-[10px] tracking-wider uppercase font-mono rounded-full border border-[#22252B] bg-[#131519] text-[#ECEAE4]">
+              Launch Console
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Layout Content - Grid System Optimized for all break-points */}
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-8 md:px-12 lg:px-16 relative z-20 pt-20 pb-12 sm:pb-16 md:py-0 flex items-center">
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="w-full max-w-xl sm:max-w-2xl lg:max-w-3xl text-center lg:text-left mx-auto lg:mx-0 flex flex-col items-center lg:items-start space-y-5 sm:space-y-6"
+        >
+          {/* Badge */}
+          <motion.div
+            variants={itemVariants}
+            className="inline-flex items-center gap-2 px-2.5 py-1 text-[9px] sm:text-[10px] font-mono tracking-[0.16em] uppercase bg-cyan-950/20 border border-cyan-900/40 rounded text-cyan-400"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+            Ingest Loop Active
           </motion.div>
 
-          <div className="space-y-4">
+          {/* Fluid Typography Heading */}
+          <div className="space-y-3 sm:space-y-4">
             <motion.h1
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-              className="text-4xl sm:text-5xl md:text-6xl font-medium tracking-tight text-white leading-[1.1]"
+              variants={itemVariants}
+              className="text-3xl sm:text-5xl md:text-6xl lg:text-[4.2rem] font-light tracking-tight text-[#ECEAE4] leading-[1.16] sm:leading-[1.1]"
             >
               Turn raw data <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-violet-200 to-neutral-400">
-                into intelligence.
+              <span className="font-normal text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-400 to-amber-400">
+                into live intelligence.
               </span>
             </motion.h1>
 
+            {/* Paragraph Text Adjustments */}
             <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                duration: 0.8,
-                delay: 0.15,
-                ease: [0.16, 1, 0.3, 1],
-              }}
-              className="text-base md:text-lg text-neutral-400 max-w-lg font-light leading-relaxed"
+              variants={itemVariants}
+              className="text-xs sm:text-sm md:text-base text-[#8B8E96] max-w-md sm:max-w-lg mx-auto lg:mx-0 font-light leading-relaxed"
             >
-              See how Xai transforms systemic chaos into computational clarity —
-              completely automated on scroll.
+              Seamlessly aggregate multi-source data streams into a unified
+              state. Watch complex structural data transform into crisp
+              computational clarity.
             </motion.p>
           </div>
 
+          {/* CTAs Stackable on small devices */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.25 }}
-            className="flex items-center gap-4 flex-wrap"
+            variants={itemVariants}
+            className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto pt-3 sm:pt-4"
           >
-            <button className="px-6 py-3 rounded-xl bg-white text-black font-medium text-sm hover:bg-neutral-200 transition-all active:scale-95 shadow-[0_0_20px_rgba(255,255,255,0.15)]">
-              Initialize Cluster
+            <button className="w-full sm:w-auto px-6 py-3 rounded-full bg-[#E8A33D] text-[#0A0B0D] font-medium text-[11px] sm:text-xs tracking-wider uppercase hover:bg-amber-400 active:scale-[0.97] transition-all duration-200">
+              Initialize Node
             </button>
-            <button className="px-6 py-3 rounded-xl bg-neutral-900/80 border border-neutral-800 text-neutral-300 font-medium text-sm hover:text-white hover:border-neutral-700 transition-all backdrop-blur-md">
-              Read Documentation
+            <button className="w-full sm:w-auto px-6 py-3 rounded-full border border-[#22252B] bg-[#131519]/60 text-[#8B8E96] font-medium text-[11px] sm:text-xs tracking-wider uppercase hover:text-[#ECEAE4] hover:border-cyan-500/30 active:scale-[0.97] transition-all duration-200">
+              View Architecture
             </button>
           </motion.div>
-        </div>
-
-        <div className="lg:col-span-5 h-48 lg:h-auto" />
+        </motion.div>
       </div>
 
-      <div
-        className="absolute bottom-6 left-8 md:left-16 z-20 flex items-center gap-3 text-[11px] font-mono tracking-widest text-neutral-500 uppercase"
-        data-aos="fade-up"
-        data-aos-delay="400"
-      >
-        <span className="w-12 h-[1px] bg-neutral-800" />
-        Scroll to structure data
+      {/* Bottom Indicator hidden on short viewports */}
+      <div className="absolute bottom-6 left-4 sm:left-8 md:left-12 lg:left-16 z-20 hidden sm:flex items-center gap-3 text-[9px] font-mono tracking-[0.2em] text-[#4B4E57] uppercase">
+        <span className="w-8 h-[1px] bg-cyan-500/30" />
+        <span>Scroll to resolve matrix</span>
       </div>
     </section>
   );
