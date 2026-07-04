@@ -1,8 +1,7 @@
-// import DashboardPreview from "@/components/IntelligenceDashboard";
-import Hero from "@/components/Hero";
-import InsightFlow from "@/components/InsightFlow";
-import IntelligenceDashboard from "@/components/IntelligenceDashboard";
+import IntelligenceDashboard from "@/components/dashboard/IntelligenceDashboard";
 import WowMoment from "@/components/WowMoment";
+import InsightFlow from "../components/Insightflow";
+import Hero from "@/components/Hero";
 
 export default function Home() {
   return (
