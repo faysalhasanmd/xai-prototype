@@ -3,7 +3,7 @@
 A high-end, scroll-driven AI product experience prototype built with **Next.js**, **React Three Fiber**, and **GSAP**. This project was developed as a technical assessment showcasing front-end engineering craft: 3D visualization, choreographed scroll animation, and production-grade component architecture.
 
 **Live Demo:** [xai-prototype.vercel.app](https://xai-prototype.vercel.app/)
-**Design File:** _[add Figma link]_
+**Design File:** _[(https://www.figma.com/design/iNJqjqszv4GBEBhkKPzI9z/Xai-%E2%80%94-Intelligence?t=44nvgiXN9bpOy1Rm-1)]_
 **Repository:** [github.com/faysalhasanmd/xai-prototype](https://github.com/faysalhasanmd/xai-prototype)
 
 ---
